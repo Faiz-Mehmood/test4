@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PORTFOLIO — Faiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<script src="auth.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #06080d; --surface: #0b0f18; --border: #141e2e;
+    --accent: #00d4ff; --accent2: #7b61ff; --text: #e4eeff; --muted: #3a5070;
+  }
+  body { background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;cursor:none;overflow-x:hidden; }
+  #cursor { width:12px;height:12px;background:var(--accent);border-radius:50%;position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen;transition:opacity 0.15s,width 0.15s,height 0.15s; }
+  #cursor-ring { width:36px;height:36px;border:1.5px solid var(--accent);border-radius:50%;position:fixed;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);opacity:0.5;transition:width 0.25s,height 0.25s,opacity 0.2s; }
+  body.on-link #cursor { width:20px;height:20px;opacity:1; }
+  body.on-link #cursor-ring { width:52px;height:52px;opacity:0.8; }
+  #grid-bg { position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0; }
+  .orb { position:fixed;border-radius:50%;filter:blur(100px);pointer-events:none;z-index:0; }
+  .orb-1 { width:500px;height:500px;background:#00d4ff;top:-200px;left:-150px;opacity:0.08; }
+  .orb-2 { width:400px;height:400px;background:#7b61ff;bottom:-150px;right:-100px;opacity:0.1; }
+
+  nav { position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;gap:0.8rem;padding:1.2rem 2.5rem;border-bottom:1px solid var(--border);background:rgba(6,8,13,0.8);backdrop-filter:blur(20px); }
+  .nav-logo { font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;color:var(--accent);text-shadow:0 0 20px var(--accent);margin-right:auto; }
+  .back-btn { font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:3px;color:var(--muted);text-decoration:none;transition:color 0.2s;padding:0.4rem 0.8rem;border:1px solid var(--border);border-radius:6px; }
+  .back-btn:hover { color:var(--accent);border-color:var(--accent); }
+
+  main { position:relative;z-index:1;padding:7rem 2rem 8rem;max-width:900px;margin:0 auto; }
+
+  /* HERO */
+  .hero { display:flex;gap:3rem;align-items:center;margin-bottom:5rem;opacity:0; }
+  .avatar { width:120px;height:120px;border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:3rem;flex-shrink:0;background:var(--surface);box-shadow:0 0 30px rgba(0,212,255,0.2);transition:box-shadow 0.2s;position:relative;overflow:hidden; }
+  .avatar:hover { box-shadow:0 0 40px rgba(0,212,255,0.4); }
+  .avatar:hover #avatar-overlay { display:flex !important; }
+  .avatar-hint { font-family:'Space Mono',monospace;font-size:0.45rem;letter-spacing:3px;color:var(--muted);margin-top:0.4rem;text-align:center; }
+  .hero-text .tag { font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:5px;color:var(--accent);margin-bottom:0.5rem; }
+  .hero-text h1 { font-family:'Bebas Neue',sans-serif;font-size:clamp(2.5rem,7vw,4.5rem);letter-spacing:5px;background:linear-gradient(135deg,#fff,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+  .bio { font-size:0.88rem;color:var(--muted);line-height:1.8;font-weight:300;max-width:500px;margin-top:0.8rem; }
+  .bio b { color:var(--text);font-weight:500; }
+  [contenteditable="true"] { outline:none; }
+  .bio[contenteditable="true"] { border-bottom:1px dashed var(--border); }
+  .bio[contenteditable="true"]:focus { border-bottom-color:var(--accent); }
+  .edit-hint { font-family:'Space Mono',monospace;font-size:0.5rem;letter-spacing:3px;color:var(--muted);margin-top:0.5rem; }
+
+  .section-title { font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:5px;color:var(--muted);margin-bottom:1.5rem; }
+  .sync-indicator { position:fixed;bottom:2rem;left:2rem;z-index:200;font-family:'Space Mono',monospace;font-size:0.5rem;letter-spacing:3px;color:var(--muted);opacity:0.8;background:rgba(6,8,13,0.85);border:1px solid var(--border);border-radius:8px;padding:0.4rem 0.8rem; }
+
+  /* SKILLS */
+  .skills-grid { display:flex;flex-wrap:wrap;gap:0.6rem;margin-bottom:1.5rem;opacity:0; }
+  .skill-tag { font-family:'Space Mono',monospace;font-size:0.62rem;letter-spacing:2px;padding:0.35rem 0.9rem;border:1px solid var(--border);border-radius:100px;color:var(--muted);transition:all 0.2s;display:flex;align-items:center;gap:0.5rem; }
+  .skill-tag:hover { border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08); }
+  .skill-del { background:transparent;border:none;cursor:none;color:#1e3050;font-size:0.6rem;padding:0;line-height:1;transition:color 0.2s; }
+  .skill-tag:hover .skill-del { color:#3a5070; }
+  .skill-del:hover { color:#ff4d6d !important; }
+  .skill-input-row { display:flex;gap:0.5rem;margin-bottom:2rem; }
+  .skill-input { background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.8rem;color:var(--text);font-family:'Space Mono',monospace;font-size:0.65rem;outline:none;width:180px;transition:border-color 0.2s; }
+  .skill-input:focus { border-color:var(--accent); }
+  .skill-add-btn { padding:0.5rem 1rem;background:transparent;border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:0.9rem;letter-spacing:2px;cursor:none;transition:background 0.2s; }
+  .skill-add-btn:hover { background:rgba(0,212,255,0.1); }
+
+  /* PROJECTS */
+  .proj-section-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem; }
+  .proj-section-row .section-title { margin-bottom:0; }
+  .add-proj-btn { font-family:'Bebas Neue',sans-serif;font-size:0.9rem;letter-spacing:3px;padding:0.4rem 1rem;background:transparent;border:1px solid var(--accent);border-radius:8px;color:var(--accent);cursor:none;transition:background 0.2s; }
+  .add-proj-btn:hover { background:rgba(0,212,255,0.1); }
+  .projects-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-bottom:3rem;opacity:0; }
+  .project-card { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;transition:border-color 0.3s,transform 0.3s;position:relative;overflow:hidden; }
+  .project-card:hover { border-color:var(--accent);transform:translateY(-4px); }
+  .project-card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:0;transition:opacity 0.3s; }
+  .project-card:hover::before { opacity:1; }
+  .proj-card-actions { position:absolute;top:0.8rem;right:0.8rem;display:flex;gap:0.4rem;opacity:0;transition:opacity 0.2s; }
+  .project-card:hover .proj-card-actions { opacity:1; }
+  .proj-action-btn { background:rgba(6,8,13,0.8);border:1px solid var(--border);cursor:none;color:var(--muted);font-size:0.75rem;padding:4px 7px;border-radius:6px;transition:color 0.2s,border-color 0.2s; }
+  .proj-action-btn:hover { color:var(--accent);border-color:var(--accent); }
+  .proj-action-btn.del:hover { color:#ff4d6d;border-color:#ff4d6d; }
+  .proj-emoji { font-size:1.5rem;margin-bottom:0.8rem;display:block; }
+  .proj-title-text { font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;margin-bottom:0.4rem;display:block; }
+  .proj-desc-text { font-size:0.78rem;color:var(--muted);line-height:1.6;font-weight:300;display:block; }
+  .proj-tech { display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.8rem; }
+  .proj-tech span { font-family:'Space Mono',monospace;font-size:0.5rem;letter-spacing:2px;padding:0.2rem 0.5rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.15);border-radius:4px;color:var(--accent); }
+  .proj-link { font-family:'Space Mono',monospace;font-size:0.5rem;letter-spacing:2px;color:var(--accent);text-decoration:none;margin-top:0.8rem;display:inline-flex;align-items:center;gap:0.3rem;opacity:0.7;transition:opacity 0.2s; }
+  .proj-link:hover { opacity:1; }
+
+  /* CONTACTS */
+  .contact-section { margin-bottom:3rem;opacity:0; }
+  .contact-section .section-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem; }
+  .contact-section .section-title { margin-bottom:0; }
+  .add-contact-btn { font-family:'Bebas Neue',sans-serif;font-size:0.9rem;letter-spacing:3px;padding:0.4rem 1rem;background:transparent;border:1px solid var(--accent);border-radius:8px;color:var(--accent);cursor:none;transition:background 0.2s; }
+  .add-contact-btn:hover { background:rgba(0,212,255,0.1); }
+  .contact-grid { display:flex;flex-wrap:wrap;gap:0.8rem; }
+  .contact-card { display:flex;align-items:center;gap:0.7rem;padding:0.6rem 1.1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--muted);transition:all 0.2s;position:relative;group:true; }
+  .contact-card:hover { border-color:var(--accent);color:var(--accent); }
+  .contact-card .contact-icon { font-size:1rem;display:flex;align-items:center; }
+  .contact-card .contact-icon img { width:20px;height:20px;object-fit:cover;border-radius:4px; }
+  .contact-card .contact-label { font-family:'Space Mono',monospace;font-size:0.58rem;letter-spacing:2px; }
+  .contact-actions { display:flex;gap:0.3rem;margin-left:0.4rem;opacity:0;transition:opacity 0.2s; }
+  .contact-card:hover .contact-actions { opacity:1; }
+  .contact-act-btn { background:rgba(6,8,13,0.8);border:1px solid var(--border);cursor:none;font-size:0.72rem;padding:3px 7px;border-radius:6px;color:var(--muted);transition:color 0.2s,border-color 0.2s; }
+  .contact-act-btn:hover { color:var(--accent);border-color:var(--accent); }
+  .contact-act-btn.del:hover { color:#ff4d6d;border-color:#ff4d6d; }
+
+  /* SAVE BAR */
+  .save-bar { position:fixed;bottom:2rem;right:2rem;z-index:200;display:flex;gap:0.8rem;align-items:center; }
+  .save-btn { font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:3px;padding:0.7rem 1.8rem;background:var(--accent);border:none;border-radius:12px;color:#06080d;cursor:none;box-shadow:0 0 24px rgba(0,212,255,0.3);transition:opacity 0.2s,box-shadow 0.2s;font-weight:700; }
+  .save-btn:hover { opacity:0.85;box-shadow:0 0 36px rgba(0,212,255,0.5); }
+  .save-toast { font-family:'Space Mono',monospace;font-size:0.55rem;letter-spacing:3px;color:var(--accent);opacity:0;transition:opacity 0.4s; }
+  .save-toast.show { opacity:1; }
+
+  /* ── MODALS ── */
+  .modal-overlay { display:none;position:fixed;inset:0;z-index:600;background:rgba(6,8,13,0.92);backdrop-filter:blur(14px);align-items:center;justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal-box { background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2.5rem;width:90%;max-width:480px; }
+  .modal-head { font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;color:var(--accent);margin-bottom:0.4rem; }
+  .modal-sub { font-family:'Space Mono',monospace;font-size:0.52rem;letter-spacing:3px;color:var(--muted);margin-bottom:1.5rem; }
+
+  .modal-field { margin-bottom:1rem; }
+  .modal-field label { font-family:'Space Mono',monospace;font-size:0.5rem;letter-spacing:3px;color:var(--muted);display:block;margin-bottom:0.35rem; }
+  .modal-field input, .modal-field textarea, .modal-field select {
+    width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;
+    padding:0.65rem 0.9rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.85rem;
+    outline:none;transition:border-color 0.2s;
+  }
+  .modal-field input:focus, .modal-field textarea:focus, .modal-field select:focus { border-color:var(--accent); }
+  .modal-field textarea { resize:vertical;min-height:90px;line-height:1.6; }
+  .modal-field select { cursor:none; }
+
+  .modal-emoji-row { display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem; }
+  .emoji-btn { background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.4rem 0.6rem;font-size:1.2rem;cursor:none;transition:border-color 0.2s,transform 0.15s; }
+  .emoji-btn:hover,.emoji-btn.sel { border-color:var(--accent);transform:scale(1.1); }
+
+  .tag-input-row { display:flex;gap:0.5rem;margin-top:0.4rem; }
+  .tag-input-row input { flex:1;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.7rem;color:var(--text);font-family:'Space Mono',monospace;font-size:0.6rem;outline:none;transition:border-color 0.2s; }
+  .tag-input-row input:focus { border-color:var(--accent); }
+  .tag-input-row button { padding:0.5rem 0.8rem;background:transparent;border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:0.85rem;cursor:none;transition:background 0.2s; }
+  .tag-input-row button:hover { background:rgba(0,212,255,0.1); }
+  .tags-preview { display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;min-height:24px; }
+  .tag-pill { font-family:'Space Mono',monospace;font-size:0.5rem;letter-spacing:2px;padding:0.2rem 0.6rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:4px;color:var(--accent);display:flex;align-items:center;gap:0.3rem; }
+  .tag-pill button { background:transparent;border:none;cursor:none;color:var(--accent);font-size:0.6rem;padding:0;line-height:1;transition:color 0.2s; }
+  .tag-pill button:hover { color:#ff4d6d; }
+
+  .modal-btns { display:flex;gap:0.7rem;justify-content:flex-end;margin-top:1.5rem; }
+  .modal-cancel { padding:0.55rem 1.1rem;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Bebas Neue',sans-serif;font-size:0.9rem;letter-spacing:2px;cursor:none;transition:all 0.2s; }
+  .modal-cancel:hover { border-color:var(--accent);color:var(--accent); }
+  .modal-confirm { padding:0.55rem 1.3rem;background:var(--accent);border:none;border-radius:8px;color:#06080d;font-family:'Bebas Neue',sans-serif;font-size:0.9rem;letter-spacing:2px;cursor:none;font-weight:700;transition:opacity 0.2s; }
+  .modal-confirm:hover { opacity:0.85; }
+</style>
+</head>
+<body>
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+<div id="grid-bg"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<nav>
+  <div class="nav-logo">🧑‍💻 PORTFOLIO</div>
+  <a class="back-btn" href="index.html">← HUB</a>
+</nav>
+
+<main>
+  <div class="hero" id="hero">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;flex-shrink:0;">
+      <div class="avatar" id="avatar-container" onclick="if(isLoggedIn())openAvatarModal()" title="Click to change profile picture" style="cursor:none;position:relative;overflow:hidden;">
+        <span id="avatar-emoji">🧑‍💻</span>
+        <img id="avatar-img" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;"/>
+        <input type="file" id="avatar-upload" accept="image/*" style="display:none;" onchange="handleAvatarUpload(this)"/>
+        <!-- hover overlay shown to owner -->
+        <div id="avatar-overlay" style="display:none;position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;flex-direction:column;gap:4px;">
+          <span style="font-size:1.2rem;">📷</span>
+          <span style="font-family:'Space Mono',monospace;font-size:0.38rem;letter-spacing:2px;color:#fff;">CHANGE</span>
+        </div>
+      </div>
+      <div class="avatar-hint edit-hint" style="text-align:center;">CLICK TO CHANGE PIC</div>
+    </div>
+    <div class="hero-text">
+      <div class="tag">// ABOUT ME</div>
+      <h1>FAIZ</h1>
+      <p class="bio" id="bio-text" contenteditable="false">I'm a <b>Computer Science student</b> passionate about building cool things. I love coding, problem solving, and pushing limits — both in the gym and at the keyboard.</p>
+      <div class="edit-hint">← CLICK TO EDIT YOUR BIO</div>
+    </div>
+  </div>
+
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:2.5rem 0 2rem;">
+  <div class="section-title">— SKILLS & TOOLS —</div>
+  <div class="skills-grid" id="skills-grid"></div>
+  <div class="skill-input-row owner-only">
+    <input class="skill-input" id="skill-input" placeholder="Add a skill..." onkeydown="if(event.key==='Enter')addSkill()"/>
+    <button class="skill-add-btn" onclick="addSkill()">+ ADD</button>
+  </div>
+
+  <div class="proj-section-row">
+    <div class="section-title">— PROJECTS —</div>
+    <button class="add-proj-btn owner-only" onclick="openProjectModal()">+ ADD PROJECT</button>
+  </div>
+  <div class="projects-grid" id="projects-grid"></div>
+
+  <div class="contact-section" id="contact-section">
+    <div class="section-row">
+      <div class="section-title">— CONTACT —</div>
+      <button class="add-contact-btn owner-only" onclick="openContactModal()">+ ADD CONTACT</button>
+    </div>
+    <div class="contact-grid" id="contact-grid"></div>
+  </div>
+</main>
+
+<!-- ── PROJECT MODAL ── -->
+<div class="modal-overlay" id="proj-modal">
+  <div class="modal-box">
+    <div class="modal-head" id="proj-modal-head">ADD PROJECT</div>
+    <div class="modal-sub">FILL IN YOUR PROJECT DETAILS</div>
+
+    <div class="modal-field">
+      <label>EMOJI / ICON (OPTIONAL — TYPE ANY EMOJI OR LEAVE BLANK)</label>
+      <div style="display:flex;align-items:center;gap:0.8rem;">
+        <input id="proj-emoji-input" maxlength="8" placeholder="e.g. 💡  or leave blank for none" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.9rem;color:var(--text);font-size:1.2rem;outline:none;width:100%;max-width:320px;transition:border-color 0.2s;font-family:'DM Sans',sans-serif;" oninput="document.getElementById('proj-emoji-preview').textContent=this.value.trim();this.style.borderColor=this.value?'var(--accent)':'var(--border)'"/>
+        <span id="proj-emoji-preview" style="font-size:1.8rem;min-width:2rem;text-align:center;"></span>
+      </div>
+    </div>
+
+    <div class="modal-field">
+      <label>PROJECT TITLE</label>
+      <input id="proj-title-input" placeholder="e.g. My Awesome App"/>
+    </div>
+
+    <div class="modal-field">
+      <label>DESCRIPTION</label>
+      <textarea id="proj-desc-input" placeholder="What did you build? What problem does it solve?"></textarea>
+    </div>
+
+    <div class="modal-field">
+      <label>PROJECT LINK (OPTIONAL)</label>
+      <input id="proj-link-input" placeholder="https://github.com/..."/>
+    </div>
+
+    <div class="modal-field">
+      <label>TECH TAGS</label>
+      <div class="tag-input-row">
+        <input id="proj-tag-input" placeholder="e.g. Python" onkeydown="if(event.key==='Enter')addModalTag()"/>
+        <button onclick="addModalTag()">+ ADD</button>
+      </div>
+      <div class="tags-preview" id="tags-preview"></div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeProjectModal()">CANCEL</button>
+      <button class="modal-confirm" onclick="saveProject()">SAVE PROJECT</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONTACT MODAL ── -->
+<div class="modal-overlay" id="contact-modal">
+  <div class="modal-box">
+    <div class="modal-head" id="contact-modal-head">ADD CONTACT</div>
+    <div class="modal-sub">LINK YOUR SOCIAL OR EMAIL</div>
+
+    <div class="modal-field">
+      <label>ICON — EMOJI OR IMAGE (OPTIONAL)</label>
+      <div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap;">
+        <input id="contact-emoji-input" maxlength="8" placeholder="Type any emoji, or leave blank" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.9rem;color:var(--text);font-size:1.2rem;outline:none;width:200px;transition:border-color 0.2s;font-family:'DM Sans',sans-serif;" oninput="updateContactEmojiPreview()"/>
+        <span id="contact-emoji-preview" style="font-size:1.6rem;min-width:1.6rem;text-align:center;"></span>
+        <span style="font-family:'Space Mono',monospace;font-size:0.5rem;letter-spacing:2px;color:var(--muted);">OR</span>
+        <label style="font-family:'Space Mono',monospace;font-size:0.55rem;letter-spacing:2px;padding:0.45rem 0.9rem;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+          UPLOAD IMAGE
+          <input type="file" id="contact-img-upload" accept="image/*" style="display:none;" onchange="handleContactImg(this)"/>
+        </label>
+        <img id="contact-img-preview" style="display:none;width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);"/>
+        <button id="contact-none-btn" onclick="clearContactIcon()" style="font-family:'Space Mono',monospace;font-size:0.5rem;letter-spacing:2px;padding:0.4rem 0.8rem;border:1px solid var(--border);border-radius:8px;color:var(--muted);background:transparent;cursor:none;transition:all 0.2s;" onmouseover="this.style.borderColor='#ff4d6d';this.style.color='#ff4d6d'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">NONE</button>
+      </div>
+    </div>
+
+    <div class="modal-field">
+      <label>LABEL</label>
+      <input id="contact-label-input" placeholder="e.g. EMAIL or GITHUB"/>
+    </div>
+
+    <div class="modal-field">
+      <label>URL / LINK</label>
+      <input id="contact-url-input" placeholder="https://...  or  mailto:you@email.com"/>
+    </div>
+
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeContactModal()">CANCEL</button>
+      <button class="modal-confirm" onclick="saveContact()">SAVE CONTACT</button>
+    </div>
+  </div>
+</div>
+
+<div class="save-bar owner-only">
+  <span class="save-toast" id="save-toast">SAVED ✓</span>
+  <button class="save-btn" onclick="saveAll()">SAVE PORTFOLIO</button>
+</div>
+
+<script>
+  const cursor=document.getElementById('cursor'),ring=document.getElementById('cursor-ring');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+  document.addEventListener('mouseover',e=>{
+    if(e.target.closest('a,button,input,textarea,select')) document.body.classList.add('on-link');
+    else document.body.classList.remove('on-link');
+  });
+  function animCursor(){cursor.style.left=mx+'px';cursor.style.top=my+'px';rx+=(mx-rx)*0.12;ry+=(my-ry)*0.12;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(animCursor);}
+  animCursor();
+
+  const loggedIn = isLoggedIn();
+
+  // ── Default data ───────────────────────────────────────────────────────────
+  const DEFAULT = {
+    bio: `I'm a <b>Computer Science student</b> passionate about building cool things. I love coding, problem solving, and pushing limits — both in the gym and at the keyboard.`,
+    skills: ['Python','JavaScript','HTML / CSS','Pseudocode','Algorithms','Cambridge A-Level CS','Problem Solving','Git'],
+    projects: [
+      {emoji:'💡',title:'PROJECT ONE',desc:'Click edit to describe your project. What did you build? What problem did it solve?',techs:['Python','HTML'],link:''},
+      {emoji:'🚀',title:'PROJECT TWO',desc:'Describe another cool project here. Mention technologies used and outcomes.',techs:['JavaScript','CSS'],link:''},
+      {emoji:'🔧',title:'PROJECT THREE',desc:'Add a third project. Maybe a school assignment, personal tool, or experiment.',techs:['Algorithms'],link:''}
+    ],
+    contacts: [
+      {emoji:'📧',label:'EMAIL',url:'mailto:you@example.com'},
+      {emoji:'🐙',label:'GITHUB',url:'https://github.com/'},
+      {emoji:'💼',label:'LINKEDIN',url:'https://linkedin.com/'},
+    ]
+  };
+
+  let skills = [...DEFAULT.skills];
+  let projects = DEFAULT.projects.map(p=>({...p}));
+  let contacts = DEFAULT.contacts.map(c=>({...c}));
+
+  // ── Firestore listener ─────────────────────────────────────────────────────
+  dbListen('hub', 'portfolio', data => {
+    if (data) {
+      skills = data.skills || skills;
+      projects = data.projects || projects;
+      contacts = data.contacts || contacts;
+      if (data.bio) document.getElementById('bio-text').innerHTML = data.bio;
+      if (data.avatarData) {
+        document.getElementById('avatar-img').src = data.avatarData;
+        document.getElementById('avatar-img').style.display = 'block';
+        document.getElementById('avatar-emoji').style.display = 'none';
+        window._avatarData = data.avatarData;
+      }
+    }
+    renderSkills(); renderProjects(); renderContacts();
+    document.getElementById('sync-ind').textContent = 'SYNCED ✓';
+  });
+
+  // ── Skills ─────────────────────────────────────────────────────────────────
+  function renderSkills() {
+    const g=document.getElementById('skills-grid');
+    g.innerHTML='';
+    skills.forEach((s,i)=>{
+      const tag=document.createElement('div');
+      tag.className='skill-tag';
+      if (loggedIn) tag.innerHTML=`${s}<button class="skill-del" onclick="deleteSkill(${i})">✕</button>`;
+      else tag.textContent=s;
+      g.appendChild(tag);
+    });
+  }
+  function addSkill() {
+    if(!loggedIn) return;
+    const v=document.getElementById('skill-input').value.trim();
+    if(!v||skills.includes(v)) return;
+    skills.push(v);
+    document.getElementById('skill-input').value='';
+    renderSkills();
+    const tags=document.querySelectorAll('.skill-tag');
+    anime({targets:tags[tags.length-1],opacity:[0,1],scale:[0.7,1],duration:400,easing:'easeOutBack'});
+  }
+  function deleteSkill(i) { if(!loggedIn)return; skills.splice(i,1); renderSkills(); }
+
+  // ── Projects ───────────────────────────────────────────────────────────────
+  function renderProjects() {
+    const g=document.getElementById('projects-grid');
+    g.innerHTML='';
+    projects.forEach((p,i)=>{
+      const card=document.createElement('div');
+      card.className='project-card';
+      const actions = loggedIn ? `
+        <div class="proj-card-actions">
+          <button class="proj-action-btn" onclick="openEditProject(${i})" title="Edit">✏️</button>
+          <button class="proj-action-btn del" onclick="deleteProject(${i})" title="Delete">🗑</button>
+        </div>` : '';
+      const link = p.link ? `<a class="proj-link" href="${p.link}" target="_blank">↗ VIEW PROJECT</a>` : '';
+      card.innerHTML=`
+        ${actions}
+        ${p.emoji ? `<span class="proj-emoji">${p.emoji}</span>` : ''}
+        <span class="proj-title-text">${p.title}</span>
+        <span class="proj-desc-text">${p.desc}</span>
+        <div class="proj-tech">${p.techs.map(t=>`<span>${t}</span>`).join('')}</div>
+        ${link}
+      `;
+      g.appendChild(card);
+    });
+    if (projects.length) anime({targets:'.project-card',opacity:[0,1],translateY:[30,0],delay:anime.stagger(100),duration:600,easing:'easeOutQuart'});
+  }
+  function deleteProject(i) {
+    if(!loggedIn)return;
+    const card=document.querySelectorAll('.project-card')[i];
+    anime({targets:card,opacity:[1,0],scale:[1,0.9],duration:300,easing:'easeInQuart',complete:()=>{projects.splice(i,1);renderProjects();}});
+  }
+
+  // ── Contacts ───────────────────────────────────────────────────────────────
+  function renderContacts() {
+    const g=document.getElementById('contact-grid');
+    g.innerHTML='';
+    contacts.forEach((c,i)=>{
+      const el=document.createElement('a');
+      el.className='contact-card';
+      el.href=c.url||'#';
+      el.target='_blank';
+      const actions = loggedIn ? `
+        <div class="contact-actions">
+          <button class="contact-act-btn" onclick="event.preventDefault();openEditContact(${i})" title="Edit">✏️</button>
+          <button class="contact-act-btn del" onclick="event.preventDefault();deleteContact(${i})" title="Delete">🗑</button>
+        </div>` : '';
+      const iconHTML = c.imgData ? `<span class="contact-icon"><img src="${c.imgData}" alt=""/></span>` : (c.emoji ? `<span class="contact-icon">${c.emoji}</span>` : '');
+      el.innerHTML=`${iconHTML}<span class="contact-label">${c.label}</span>${actions}`;
+      g.appendChild(el);
+    });
+    if (contacts.length) anime({targets:'.contact-card',opacity:[0,1],translateY:[15,0],delay:anime.stagger(80),duration:500,easing:'easeOutQuart'});
+  }
+  function deleteContact(i) { if(!loggedIn)return; contacts.splice(i,1); renderContacts(); }
+
+  // ── Project Modal ──────────────────────────────────────────────────────────
+  // ── Avatar ────────────────────────────────────────────────────────────────
+  function handleAvatarUpload(input) {
+    if (!isLoggedIn() || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const data = e.target.result;
+      document.getElementById('avatar-img').src = data;
+      document.getElementById('avatar-img').style.display = 'block';
+      document.getElementById('avatar-emoji').style.display = 'none';
+      window._avatarData = data;
+      // Update modal preview
+      const mp = document.getElementById('avatar-modal-preview');
+      if (mp) { mp.innerHTML = ''; const im = document.createElement('img'); im.src=data; im.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;'; mp.appendChild(im); }
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+
+  let editProjIdx = -1;
+  let modalTags = [];
+
+  // ── Free Emoji + none/reset helpers ─────────────────────────────────────
+  function clearProjEmoji() {
+    document.getElementById('proj-emoji-input').value = '';
+    document.getElementById('proj-emoji-preview').textContent = '';
+    document.getElementById('proj-emoji-input').style.borderColor = 'var(--border)';
+    updateProjNoneBtn(false);
+  }
+  function updateProjNoneBtn(hasVal) {
+    const b = document.getElementById('proj-emoji-none-btn');
+    if (b) b.textContent = hasVal ? 'RESET' : 'NONE';
+  }
+  function updateProjEmojiPreview() {
+    const v = document.getElementById('proj-emoji-input').value.trim();
+    document.getElementById('proj-emoji-preview').textContent = v;
+    updateProjNoneBtn(!!v);
+  }
+  function setQuickEmoji(e) {
+    document.getElementById('proj-emoji-input').value = e;
+    updateProjEmojiPreview();
+  }
+
+  // ── Contact none/reset button ─────────────────────────────────────────────
+  function updateContactNoneBtn(hasVal) {
+    const b = document.getElementById('contact-none-btn');
+    if (b) b.textContent = hasVal ? 'RESET' : 'NONE';
+  }
+
+  // ── Avatar Modal ─────────────────────────────────────────────────────────
+  function openAvatarModal() {
+    if (!isLoggedIn()) return;
+    // Sync the preview in the modal
+    const mp = document.getElementById('avatar-modal-preview');
+    if (mp) {
+      const img = document.getElementById('avatar-img');
+      const emoji = document.getElementById('avatar-emoji');
+      if (img && img.style.display !== 'none' && img.src) {
+        mp.innerHTML = '';
+        const im = document.createElement('img'); im.src=img.src;
+        im.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;';
+        mp.appendChild(im);
+      } else {
+        mp.textContent = emoji ? emoji.textContent : '🧑‍💻';
+      }
+    }
+    document.getElementById('avatar-modal').classList.add('open');
+  }
+  function closeAvatarModal() { document.getElementById('avatar-modal').classList.remove('open'); }
+  function resetAvatar() {
+    document.getElementById('avatar-img').style.display = 'none';
+    document.getElementById('avatar-img').src = '';
+    document.getElementById('avatar-emoji').style.display = '';
+    window._avatarData = null;
+    closeAvatarModal();
+  }
+
+  function openProjectModal(editIdx=-1) {
+    editProjIdx=editIdx;
+    modalTags=[];
+    document.getElementById('proj-emoji-input').value = '💡';
+    document.getElementById('proj-emoji-preview').textContent = '💡';
+    updateProjNoneBtn(true);
+    document.getElementById('proj-title-input').value='';
+    document.getElementById('proj-desc-input').value='';
+    document.getElementById('proj-link-input').value='';
+    document.getElementById('proj-tag-input').value='';
+    document.getElementById('tags-preview').innerHTML='';
+    document.getElementById('proj-modal-head').textContent = editIdx>=0 ? 'EDIT PROJECT' : 'ADD PROJECT';
+
+    if (editIdx>=0) {
+      const p=projects[editIdx];
+      document.getElementById('proj-emoji-input').value = p.emoji||'';
+      document.getElementById('proj-emoji-preview').textContent = p.emoji||'';
+      updateProjNoneBtn(!!(p.emoji));
+      document.getElementById('proj-title-input').value=p.title;
+      document.getElementById('proj-desc-input').value=p.desc;
+      document.getElementById('proj-link-input').value=p.link||'';
+      modalTags=[...p.techs];
+      renderModalTags();
+    }
+    document.getElementById('proj-modal').classList.add('open');
+    setTimeout(()=>document.getElementById('proj-title-input').focus(),100);
+  }
+  function openEditProject(i) { openProjectModal(i); }
+  function closeProjectModal() { document.getElementById('proj-modal').classList.remove('open'); }
+
+  function addModalTag() {
+    const inp=document.getElementById('proj-tag-input');
+    const v=inp.value.trim();
+    if(!v||modalTags.includes(v)) return;
+    modalTags.push(v); inp.value='';
+    renderModalTags();
+  }
+  function renderModalTags() {
+    const prev=document.getElementById('tags-preview');
+    prev.innerHTML='';
+    modalTags.forEach((t,i)=>{
+      const pill=document.createElement('div');
+      pill.className='tag-pill';
+      pill.innerHTML=`${t}<button onclick="removeModalTag(${i})">✕</button>`;
+      prev.appendChild(pill);
+    });
+  }
+  function removeModalTag(i) { modalTags.splice(i,1); renderModalTags(); }
+
+  function saveProject() {
+    if(!loggedIn)return;
+    const title=document.getElementById('proj-title-input').value.trim();
+    if(!title)return;
+    const projEmoji = document.getElementById('proj-emoji-input').value.trim() || null;
+    const proj={
+      emoji:projEmoji,
+      title,
+      desc:document.getElementById('proj-desc-input').value.trim()||'No description yet.',
+      link:document.getElementById('proj-link-input').value.trim(),
+      techs:[...modalTags]
+    };
+    if(editProjIdx>=0) projects[editProjIdx]=proj;
+    else projects.push(proj);
+    closeProjectModal();
+    renderProjects();
+    anime({targets:'.project-card',opacity:[0,1],translateY:[20,0],delay:anime.stagger(80),duration:500,easing:'easeOutQuart'});
+  }
+
+  // ── Contact Modal ──────────────────────────────────────────────────────────
+  let editContactIdx = -1;
+  let contactImgData = null;
+
+  function updateContactEmojiPreview() {
+    const v = document.getElementById('contact-emoji-input').value.trim();
+    document.getElementById('contact-emoji-preview').textContent = v;
+    contactImgData = null;
+    document.getElementById('contact-img-preview').style.display = 'none';
+    updateContactNoneBtn(!!v);
+  }
+  function setContactEmoji(e) {
+    document.getElementById('contact-emoji-input').value = e;
+    updateContactEmojiPreview();
+  }
+  function clearContactIcon() {
+    document.getElementById('contact-emoji-input').value = '';
+    document.getElementById('contact-emoji-preview').textContent = '';
+    contactImgData = null;
+    document.getElementById('contact-img-preview').style.display = 'none';
+    updateContactNoneBtn(false);
+  }
+  function handleContactImg(input) {
+    if (!input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      contactImgData = e.target.result;
+      document.getElementById('contact-img-preview').src = contactImgData;
+      document.getElementById('contact-img-preview').style.display = 'inline-block';
+      document.getElementById('contact-emoji-input').value = '';
+      document.getElementById('contact-emoji-preview').textContent = '';
+      updateContactNoneBtn(true);
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+
+  function openContactModal(editIdx=-1) {
+    editContactIdx=editIdx;
+    contactImgData = null;
+    document.getElementById('contact-emoji-input').value = '📧';
+    document.getElementById('contact-emoji-preview').textContent = '📧';
+    document.getElementById('contact-img-preview').style.display = 'none';
+    document.getElementById('contact-label-input').value='';
+    document.getElementById('contact-url-input').value='';
+    document.getElementById('contact-modal-head').textContent = editIdx>=0 ? 'EDIT CONTACT' : 'ADD CONTACT';
+
+    if (editIdx>=0) {
+      const c=contacts[editIdx];
+      if (c.imgData) {
+        contactImgData = c.imgData;
+        document.getElementById('contact-img-preview').src = c.imgData;
+        document.getElementById('contact-img-preview').style.display = 'inline-block';
+        document.getElementById('contact-emoji-input').value = '';
+        document.getElementById('contact-emoji-preview').textContent = '';
+        updateContactNoneBtn(true);
+      } else {
+        document.getElementById('contact-emoji-input').value = c.emoji||'';
+        document.getElementById('contact-emoji-preview').textContent = c.emoji||'';
+        updateContactNoneBtn(!!(c.emoji));
+      }
+      document.getElementById('contact-label-input').value=c.label;
+      document.getElementById('contact-url-input').value=c.url;
+    } else {
+      updateContactNoneBtn(false);
+    }
+    document.getElementById('contact-modal').classList.add('open');
+    setTimeout(()=>document.getElementById('contact-label-input').focus(),100);
+  }
+  function openEditContact(i) { openContactModal(i); }
+  function closeContactModal() { document.getElementById('contact-modal').classList.remove('open'); }
+
+  function saveContact() {
+    if(!loggedIn)return;
+    const label=document.getElementById('contact-label-input').value.trim().toUpperCase();
+    const url=document.getElementById('contact-url-input').value.trim();
+    if(!label||!url)return;
+    const emoji = document.getElementById('contact-emoji-input').value.trim() || null;
+    const contact={emoji,imgData:contactImgData||null,label,url};
+    if(editContactIdx>=0) contacts[editContactIdx]=contact;
+    else contacts.push(contact);
+    closeContactModal();
+    renderContacts();
+  }
+
+  // ── Save all to Firebase ───────────────────────────────────────────────────
+  async function saveAll() {
+    if(!loggedIn)return;
+    document.getElementById('sync-ind').textContent='SAVING...';
+    const bioHTML=document.getElementById('bio-text').innerHTML;
+    const avatarData = window._avatarData || null;
+    await dbSet('hub','portfolio',{bio:bioHTML,skills,projects,contacts,avatarData});
+    document.getElementById('sync-ind').textContent='SYNCED ✓';
+    const toast=document.getElementById('save-toast');
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'),2000);
+    anime({targets:'.save-btn',scale:[1,0.95,1],duration:300,easing:'easeOutQuart'});
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  applyAuthUI();
+  anime.timeline({easing:'easeOutExpo'})
+    .add({targets:'#hero',opacity:[0,1],translateY:[40,0],duration:900})
+    .add({targets:'.skills-grid',opacity:[0,1],translateY:[20,0],duration:700},'-=400')
+    .add({targets:'#projects-grid',opacity:[0,1],translateY:[20,0],duration:700},'-=300')
+    .add({targets:'#contact-section',opacity:[0,1],translateY:[20,0],duration:600},'-=200');
+  anime({targets:'.orb-1',scale:[1,1.2,1],duration:8000,easing:'easeInOutSine',loop:true});
+</script>
+
+<!-- AVATAR MODAL -->
+<div class="modal-overlay" id="avatar-modal">
+  <div class="modal-box" style="max-width:380px;text-align:center;">
+    <div class="modal-head">PROFILE PICTURE</div>
+    <div class="modal-sub">UPLOAD A PHOTO OR RESET TO EMOJI</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;margin:1.5rem 0;">
+      <div id="avatar-modal-preview" style="width:100px;height:100px;border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:3rem;background:var(--surface);overflow:hidden;box-shadow:0 0 20px rgba(0,212,255,0.2);"></div>
+      <label style="font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:3px;padding:0.6rem 1.4rem;border:1px solid var(--accent);border-radius:10px;color:var(--accent);cursor:pointer;transition:background 0.2s;display:inline-block;" onmouseover="this.style.background='rgba(0,212,255,0.08)'" onmouseout="this.style.background='transparent'">
+        📷 UPLOAD PHOTO
+        <input type="file" id="avatar-upload-modal" accept="image/*" style="display:none;" onchange="handleAvatarUpload(this);closeAvatarModal()"/>
+      </label>
+      <button onclick="resetAvatar()" style="font-family:'Space Mono',monospace;font-size:0.55rem;letter-spacing:3px;padding:0.5rem 1.2rem;border:1px solid var(--border);border-radius:10px;color:var(--muted);background:transparent;cursor:none;transition:all 0.2s;" onmouseover="this.style.borderColor='#ff4d6d';this.style.color='#ff4d6d'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🔄 RESET TO EMOJI</button>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeAvatarModal()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<div class="sync-indicator" id="sync-ind">SYNCED ✓</div>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FAIZ — Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<script src="auth.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{--bg:#080b10;--bg2:#0d1117;--surface:#111820;--border:#1e2a38;--accent:#00d4ff;--accent2:#7b61ff;--accent3:#ff4d6d;--text:#e8f0fe;--muted:#4a6080;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;cursor:none;}
+  #cursor{width:12px;height:12px;background:var(--accent);border-radius:50%;position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:opacity 0.15s,width 0.15s,height 0.15s;mix-blend-mode:screen;}
+  #cursor-ring{width:36px;height:36px;border:1.5px solid var(--accent);border-radius:50%;position:fixed;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);opacity:0.5;transition:width 0.25s,height 0.25s,opacity 0.2s;}
+  body.on-link #cursor{width:20px;height:20px;opacity:1;}
+  body.on-link #cursor-ring{width:52px;height:52px;opacity:0.8;}
+  #grid-bg{position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0;}
+  #noise{position:fixed;inset:0;opacity:0.025;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");pointer-events:none;z-index:0;}
+  .orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0;opacity:0.18;}
+  .orb-1{width:500px;height:500px;background:var(--accent2);top:-150px;left:-150px;}
+  .orb-2{width:400px;height:400px;background:var(--accent);bottom:-100px;right:-100px;}
+  .orb-3{width:300px;height:300px;background:var(--accent3);top:50%;left:50%;transform:translate(-50%,-50%);}
+
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;gap:0.8rem;padding:1.2rem 3rem;border-bottom:1px solid var(--border);background:rgba(8,11,16,0.7);backdrop-filter:blur(20px);}
+  .nav-logo{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:4px;color:var(--accent);text-shadow:0 0 20px var(--accent);}
+  .nav-status{font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--muted);letter-spacing:2px;margin:0 auto;}
+  .nav-status span{color:var(--accent);}
+
+  .hero{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8rem 2rem 4rem;}
+  .hero-tag{font-family:'Space Mono',monospace;font-size:0.65rem;letter-spacing:5px;color:var(--accent);text-transform:uppercase;margin-bottom:1.5rem;opacity:0;}
+  .hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(5rem,14vw,11rem);line-height:0.9;letter-spacing:8px;background:linear-gradient(135deg,#fff 0%,var(--accent) 50%,var(--accent2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0;margin-bottom:1.5rem;}
+  .hero-sub{font-family:'DM Sans',sans-serif;font-size:1rem;color:var(--muted);letter-spacing:2px;max-width:400px;opacity:0;margin-bottom:3rem;font-weight:300;}
+  .scroll-hint{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:4px;color:var(--muted);opacity:0;display:flex;align-items:center;gap:0.8rem;}
+  .scroll-hint::before,.scroll-hint::after{content:'';width:40px;height:1px;background:var(--border);}
+
+  .cards-section{position:relative;z-index:1;padding:4rem 2rem 8rem;max-width:1200px;margin:0 auto;}
+  .section-row{display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:3rem;}
+  .section-label{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:5px;color:var(--muted);text-transform:uppercase;}
+  .add-dest-btn{font-family:'Bebas Neue',sans-serif;font-size:0.85rem;letter-spacing:3px;padding:0.35rem 0.9rem;background:transparent;border:1px solid var(--accent);border-radius:8px;color:var(--accent);cursor:none;transition:background 0.2s;}
+  .add-dest-btn:hover{background:rgba(0,212,255,0.1);}
+
+  .cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.5rem;}
+  .card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem 2rem;cursor:none;overflow:hidden;text-decoration:none;display:block;transition:border-color 0.3s,transform 0.3s;opacity:0;transform:translateY(40px);}
+  .card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(0,212,255,0.08) 0%,transparent 60%);opacity:0;transition:opacity 0.4s;border-radius:16px;}
+  .card:hover::before{opacity:1;}
+  .card:hover{border-color:var(--card-accent,var(--accent));transform:translateY(-6px);}
+  .card-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:1.5rem;background:var(--card-icon-bg,rgba(0,212,255,0.1));border:1px solid var(--card-accent,rgba(0,212,255,0.2));}
+  .card-num{font-family:'Space Mono',monospace;font-size:0.55rem;letter-spacing:3px;color:var(--muted);margin-bottom:0.6rem;}
+  .card-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;color:var(--text);margin-bottom:0.6rem;}
+  .card-desc{font-size:0.82rem;color:var(--muted);line-height:1.6;font-weight:300;}
+  .card-arrow{position:absolute;bottom:1.8rem;right:1.8rem;width:32px;height:32px;border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;color:var(--muted);transition:border-color 0.3s,color 0.3s,transform 0.3s;}
+  .card:hover .card-arrow{border-color:var(--card-accent,var(--accent));color:var(--card-accent,var(--accent));transform:rotate(45deg);}
+  .card-actions{position:absolute;top:1rem;right:1rem;display:flex;gap:0.35rem;opacity:0;transition:opacity 0.2s;z-index:2;}
+  .card:hover .card-actions{opacity:1;}
+  .card-act-btn{background:rgba(8,11,16,0.85);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:0.72rem;padding:4px 7px;cursor:none;transition:color 0.15s,border-color 0.15s;}
+  .card-act-btn:hover{color:var(--accent);border-color:var(--accent);}
+  .card-act-btn.del:hover{color:#ff4d6d;border-color:#ff4d6d;}
+
+  footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:1.5rem 3rem;display:flex;justify-content:space-between;align-items:center;}
+  footer p{font-family:'Space Mono',monospace;font-size:0.55rem;color:var(--muted);letter-spacing:2px;}
+  .scanline{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);z-index:200;opacity:0.6;}
+
+  /* MODAL */
+  .modal-overlay{display:none;position:fixed;inset:0;z-index:700;background:rgba(8,11,16,0.93);backdrop-filter:blur(14px);align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2.5rem;width:90%;max-width:520px;max-height:90vh;overflow-y:auto;}
+  .modal-head{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;color:var(--accent);margin-bottom:0.4rem;}
+  .modal-sub{font-family:'Space Mono',monospace;font-size:0.52rem;letter-spacing:3px;color:var(--muted);margin-bottom:1.6rem;}
+  .modal-field{margin-bottom:1rem;}
+  .modal-field label{font-family:'Space Mono',monospace;font-size:0.5rem;letter-spacing:3px;color:var(--muted);display:block;margin-bottom:0.35rem;}
+  .modal-field input,.modal-field textarea{width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.9rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.85rem;outline:none;transition:border-color 0.2s;}
+  .modal-field input:focus,.modal-field textarea:focus{border-color:var(--accent);}
+  .modal-field textarea{resize:none;height:70px;line-height:1.6;}
+
+
+
+  /* Color row */
+  .modal-color-row{display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;}
+  .color-swatch{width:28px;height:28px;border-radius:8px;cursor:none;border:2.5px solid transparent;transition:border-color 0.15s,transform 0.15s;}
+  .color-swatch:hover,.color-swatch.sel{border-color:#fff;transform:scale(1.15);}
+
+  .modal-btns{display:flex;gap:0.7rem;justify-content:flex-end;margin-top:1.5rem;}
+  .modal-cancel{padding:0.55rem 1.1rem;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Bebas Neue',sans-serif;font-size:0.9rem;letter-spacing:2px;cursor:none;transition:all 0.2s;}
+  .modal-cancel:hover{border-color:var(--accent);color:var(--accent);}
+  .modal-confirm{padding:0.55rem 1.3rem;background:var(--accent);border:none;border-radius:8px;color:#080b10;font-family:'Bebas Neue',sans-serif;font-size:0.9rem;letter-spacing:2px;cursor:none;font-weight:700;transition:opacity 0.2s;}
+  .modal-confirm:hover{opacity:0.85;}
+</style>
+</head>
+<body>
+<div id="cursor"></div><div id="cursor-ring"></div>
+<div id="grid-bg"></div><div id="noise"></div>
+<div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+<div class="scanline" id="scanline"></div>
+
+<nav>
+  <div class="nav-logo">FAIZ</div>
+  <div class="nav-status">STATUS: <span>ONLINE</span> // PAGES: <span id="page-count">04</span></div>
+</nav>
+
+<section class="hero">
+  <div class="hero-tag" id="tag">Personal Dashboard</div>
+  <h1 class="hero-title" id="title">MY HUB</h1>
+  <p class="hero-sub" id="sub">Your personal command center — everything in one place.</p>
+  <div class="scroll-hint" id="hint">EXPLORE BELOW</div>
+</section>
+
+<section class="cards-section">
+  <div class="section-row">
+    <div class="section-label">— SELECT A DESTINATION —</div>
+    <button class="add-dest-btn owner-only" onclick="openDestModal(-1)">+ ADD PAGE</button>
+  </div>
+  <div class="cards-grid" id="cards-grid"></div>
+</section>
+
+<footer>
+  <p>FAIZ // PERSONAL HUB // 2026</p>
+  <p>BUILT WITH ANIME.JS + FIREBASE</p>
+</footer>
+
+<!-- DESTINATION MODAL -->
+<div class="modal-overlay" id="dest-modal">
+  <div class="modal-box">
+    <div class="modal-head" id="dest-modal-head">ADD PAGE</div>
+    <div class="modal-sub">CONFIGURE YOUR DESTINATION CARD</div>
+
+    <div class="modal-field">
+      <label>ICON EMOJI (TYPE ANY EMOJI OR LEAVE BLANK FOR NONE)</label>
+      <div style="display:flex;align-items:center;gap:0.8rem;">
+        <input id="dest-emoji-inp" maxlength="8" placeholder="e.g. 🏋️  or leave blank" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.9rem;color:var(--text);font-size:1.2rem;outline:none;width:100%;max-width:280px;transition:border-color 0.2s;font-family:'DM Sans',sans-serif;" oninput="document.getElementById('dest-emoji-preview').textContent=this.value.trim();this.style.borderColor=this.value.trim()?'var(--accent)':'var(--border)'"/>
+        <span id="dest-emoji-preview" style="font-size:2rem;min-width:2.2rem;text-align:center;"></span>
+      </div>
+    </div>
+
+    <div class="modal-field">
+      <label>ACCENT COLOR</label>
+      <div class="modal-color-row" id="color-row">
+        <div class="color-swatch sel" data-c="#00d4ff" style="background:#00d4ff"></div>
+        <div class="color-swatch" data-c="#ff4d6d" style="background:#ff4d6d"></div>
+        <div class="color-swatch" data-c="#7b61ff" style="background:#7b61ff"></div>
+        <div class="color-swatch" data-c="#00e5a0" style="background:#00e5a0"></div>
+        <div class="color-swatch" data-c="#ff8c00" style="background:#ff8c00"></div>
+        <div class="color-swatch" data-c="#c77dff" style="background:#c77dff"></div>
+        <div class="color-swatch" data-c="#f72585" style="background:#f72585"></div>
+        <div class="color-swatch" data-c="#4cc9f0" style="background:#4cc9f0"></div>
+      </div>
+    </div>
+
+    <div class="modal-field">
+      <label>PAGE TITLE</label>
+      <input id="dest-title-inp" placeholder="e.g. GYM LOG"/>
+    </div>
+    <div class="modal-field">
+      <label>DESCRIPTION</label>
+      <textarea id="dest-desc-inp" placeholder="Short description of this page..."></textarea>
+    </div>
+    <div class="modal-field">
+      <label>PAGE URL / FILENAME</label>
+      <input id="dest-url-inp" placeholder="e.g. gym.html  or  https://example.com"/>
+    </div>
+
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeDestModal()">CANCEL</button>
+      <button class="modal-confirm" onclick="saveDestination()">SAVE PAGE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const cursor=document.getElementById('cursor'),ring=document.getElementById('cursor-ring');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+  document.addEventListener('mouseover',e=>{if(e.target.closest('a,button,input,textarea,select'))document.body.classList.add('on-link');else document.body.classList.remove('on-link');});
+  function animCursor(){cursor.style.left=mx+'px';cursor.style.top=my+'px';rx+=(mx-rx)*0.12;ry+=(my-ry)*0.12;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(animCursor);}
+  animCursor();
+
+  anime({targets:'#scanline',top:['0%','100%'],duration:3000,easing:'linear',loop:true,delay:1000});
+  anime({targets:'.orb-1',translateX:[0,60,0],translateY:[0,-40,0],duration:8000,easing:'easeInOutSine',loop:true});
+  anime({targets:'.orb-2',translateX:[0,-50,0],translateY:[0,30,0],duration:10000,easing:'easeInOutSine',loop:true});
+  anime({targets:'.orb-3',scale:[1,1.3,1],opacity:[0.18,0.1,0.18],duration:6000,easing:'easeInOutSine',loop:true});
+  anime.timeline({easing:'easeOutExpo'})
+    .add({targets:'#tag',opacity:[0,1],translateY:[20,0],duration:800})
+    .add({targets:'#title',opacity:[0,1],translateY:[60,0],duration:1000},'-=400')
+    .add({targets:'#sub',opacity:[0,1],translateY:[20,0],duration:800},'-=600')
+    .add({targets:'#hint',opacity:[0,0.6],duration:600},'-=200');
+
+  const loggedIn = isLoggedIn();
+
+
+
+  let selectedDestColor = '#00d4ff';
+
+  document.querySelectorAll('#color-row .color-swatch').forEach(sw=>{
+    sw.onclick=()=>{
+      document.querySelectorAll('#color-row .color-swatch').forEach(s=>s.classList.remove('sel'));
+      sw.classList.add('sel');
+      selectedDestColor=sw.dataset.c;
+    };
+  });
+
+  // ── DATA ─────────────────────────────────────────────────────────────────
+  const DEFAULT_DESTS = [
+    {emoji:'🧑‍💻',title:'PORTFOLIO',desc:'Your personal space to showcase projects, skills, and everything about you.',url:'portfolio.html',color:'#00d4ff'},
+    {emoji:'🏋️',title:'GYM LOG',desc:'Track your workouts, sets, reps, and weights. Stay consistent and crush your goals.',url:'gym.html',color:'#ff4d6d'},
+    {emoji:'📚',title:'STUDY NOTES',desc:'Capture lecture notes, topics, and revision summaries — all organized and searchable.',url:'study.html',color:'#7b61ff'},
+    {emoji:'✅',title:'TO-DO LIST',desc:'Manage your daily tasks. Add, complete, and clear what needs to get done today.',url:'todo.html',color:'#00e5a0'},
+  ];
+  let destinations = [];
+
+  dbListen('hub','destinations', data => {
+    destinations = (data && data.list && data.list.length) ? data.list : DEFAULT_DESTS.map(d=>({...d}));
+    renderCards();
+    document.getElementById('page-count').textContent = String(destinations.length).padStart(2,'0');
+  });
+
+  function hexToRgba(hex,a){
+    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function renderCards() {
+    const grid2 = document.getElementById('cards-grid');
+    grid2.innerHTML = '';
+    destinations.forEach((d,i) => {
+      const card = document.createElement('a');
+      card.className = 'card';
+      card.href = d.url||'#';
+      card.style.setProperty('--card-accent', d.color||'#00d4ff');
+      card.style.setProperty('--card-icon-bg', hexToRgba(d.color||'#00d4ff',0.1));
+      const ownerBtns = loggedIn ? `<div class="card-actions">
+        <button class="card-act-btn" onclick="event.preventDefault();openDestModal(${i})" title="Edit">✏️</button>
+        <button class="card-act-btn del" onclick="event.preventDefault();deleteDest(${i})" title="Delete">🗑</button>
+      </div>` : '';
+      const iconHTML = d.emoji ? `<div class="card-icon">${d.emoji}</div>` : '';
+      card.innerHTML = `${ownerBtns}${iconHTML}
+        <div class="card-num">${String(i+1).padStart(2,'0')} / ${String(destinations.length).padStart(2,'0')}</div>
+        <div class="card-title">${d.title}</div>
+        <p class="card-desc">${d.desc}</p>
+        <div class="card-arrow">→</div>`;
+      card.addEventListener('mousemove',e=>{
+        const r=card.getBoundingClientRect();
+        card.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');
+        card.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%');
+      });
+      grid2.appendChild(card);
+    });
+    anime({targets:'.card',opacity:[0,1],translateY:[40,0],delay:anime.stagger(120,{start:200}),duration:800,easing:'easeOutQuart'});
+    document.getElementById('page-count').textContent = String(destinations.length).padStart(2,'0');
+  }
+
+  // ── MODAL ────────────────────────────────────────────────────────────────
+  let editDestIdx = -1;
+
+  function clearDestEmoji() {
+    document.getElementById('dest-emoji-inp').value = '';
+    document.getElementById('dest-emoji-preview').textContent = '';
+    document.getElementById('dest-emoji-inp').style.borderColor = 'var(--border)';
+    updateEmojiNoneBtn(false);
+  }
+  function updateEmojiNoneBtn(hasEmoji) {
+    const btn = document.getElementById('dest-emoji-none-btn');
+    if (!btn) return;
+    btn.textContent = hasEmoji ? 'RESET' : 'NONE';
+  }
+
+  function openDestModal(editIdx) {
+    if (!loggedIn) return;
+    editDestIdx = editIdx;
+    selectedDestColor = '#00d4ff';
+    document.querySelectorAll('#color-row .color-swatch').forEach((s,i)=>s.classList.toggle('sel',i===0));
+    document.getElementById('dest-emoji-inp').value = '';
+    document.getElementById('dest-emoji-preview').textContent = '';
+    updateEmojiNoneBtn(false);
+    document.getElementById('dest-title-inp').value = '';
+    document.getElementById('dest-desc-inp').value = '';
+    document.getElementById('dest-url-inp').value = '';
+    document.getElementById('dest-modal-head').textContent = editIdx >= 0 ? 'EDIT PAGE' : 'ADD PAGE';
+
+    if (editIdx >= 0) {
+      const d = destinations[editIdx];
+      selectedDestColor = d.color||'#00d4ff';
+      document.getElementById('dest-emoji-inp').value = d.emoji||'';
+      document.getElementById('dest-emoji-preview').textContent = d.emoji||'';
+      updateEmojiNoneBtn(!!(d.emoji));
+      document.querySelectorAll('#color-row .color-swatch').forEach(s=>{s.classList.remove('sel');if(s.dataset.c===d.color)s.classList.add('sel');});
+      document.getElementById('dest-title-inp').value = d.title;
+      document.getElementById('dest-desc-inp').value = d.desc;
+      document.getElementById('dest-url-inp').value = d.url;
+    }
+    document.getElementById('dest-modal').classList.add('open');
+    setTimeout(()=>document.getElementById('dest-title-inp').focus(),100);
+  }
+
+  function closeDestModal() { document.getElementById('dest-modal').classList.remove('open'); }
+
+  async function saveDestination() {
+    if (!loggedIn) return;
+    const title = document.getElementById('dest-title-inp').value.trim().toUpperCase();
+    const desc = document.getElementById('dest-desc-inp').value.trim();
+    const url = document.getElementById('dest-url-inp').value.trim();
+    if (!title || !url) return;
+    const emojiVal = document.getElementById('dest-emoji-inp').value.trim() || null;
+    const dest = {emoji:emojiVal,title,desc:desc||'A new destination.',url,color:selectedDestColor};
+    if (editDestIdx >= 0) destinations[editDestIdx] = dest;
+    else destinations.push(dest);
+    closeDestModal();
+    renderCards();
+    await dbSet('hub','destinations',{list:destinations});
+  }
+
+  async function deleteDest(i) {
+    if (!loggedIn || destinations.length <= 1) return;
+    destinations.splice(i,1);
+    renderCards();
+    await dbSet('hub','destinations',{list:destinations});
+  }
+
+  applyAuthUI();
+</script>
+</body>
+</html>
