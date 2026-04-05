@@ -276,4 +276,182 @@
       card.className = 'card';
       card.href = d.url||'#';
       card.style.setProperty('--card-accent', d.color||'#00d4ff');
-      card.s
+card.style.setProperty('--card-icon-bg', hexToRgba(d.color||'#00d4ff',0.1));
+      const ownerBtns = loggedIn ? `<div class="card-actions">
+        <button class="card-act-btn" onclick="event.preventDefault();openDestModal(${i})" title="Edit">✏️</button>
+        <button class="card-act-btn del" onclick="event.preventDefault();deleteDest(${i})" title="Delete">🗑</button>
+      </div>` : '';
+      let iconHTML = '';
+      if (d.imgData) {
+        iconHTML = `<div class="card-icon" style="padding:0;overflow:hidden;"><img src="${d.imgData}" style="width:100%;height:100%;object-fit:cover;border-radius:13px;" alt=""/></div>`;
+      } else if (d.emoji) {
+        iconHTML = `<div class="card-icon">${d.emoji}</div>`;
+      }
+      card.innerHTML = `${ownerBtns}${iconHTML}
+        <div class="card-num">${String(i+1).padStart(2,'0')} / ${String(destinations.length).padStart(2,'0')}</div>
+        <div class="card-title">${d.title}</div>
+        <p class="card-desc">${d.desc}</p>
+        <div class="card-arrow">→</div>`;
+      card.addEventListener('mousemove',e=>{
+        const r=card.getBoundingClientRect();
+        card.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');
+        card.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%');
+      });
+      grid2.appendChild(card);
+    });
+    anime({targets:'.card',opacity:[0,1],translateY:[40,0],delay:anime.stagger(120,{start:200}),duration:800,easing:'easeOutQuart'});
+    document.getElementById('page-count').textContent = String(destinations.length).padStart(2,'0');
+  }
+
+  // ── MODAL ────────────────────────────────────────────────────────────────
+  let editDestIdx = -1;
+
+  // ── Icon picker helpers ─────────────────────────────────────────────────
+  let _destImgData = null; // base64 uploaded image for current modal
+
+  function onDestEmojiType(inp) {
+    _destImgData = null; // emoji typed -> clear image
+    document.getElementById('dest-img-preview').style.display = 'none';
+    document.getElementById('dest-emoji-preview').textContent = inp.value.trim();
+    inp.style.borderColor = inp.value.trim() ? 'var(--accent)' : 'var(--border)';
+    updateDestClearBtn();
+  }
+
+  function onDestImgUpload(inp) {
+    if (!inp.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      _destImgData = e.target.result;
+      const imgEl = document.getElementById('dest-img-preview');
+      imgEl.src = _destImgData;
+      imgEl.style.display = 'block';
+      document.getElementById('dest-emoji-preview').textContent = '';
+      document.getElementById('dest-emoji-inp').value = '';
+      document.getElementById('dest-emoji-inp').style.borderColor = 'var(--border)';
+      updateDestClearBtn();
+    };
+    reader.readAsDataURL(inp.files[0]);
+  }
+
+  function clearDestIcon() {
+    _destImgData = null;
+    document.getElementById('dest-img-preview').style.display = 'none';
+    document.getElementById('dest-img-preview').src = '';
+    document.getElementById('dest-emoji-inp').value = '';
+    document.getElementById('dest-emoji-preview').textContent = '';
+    document.getElementById('dest-emoji-inp').style.borderColor = 'var(--border)';
+    document.getElementById('dest-img-inp').value = '';
+    updateDestClearBtn(); // will remove .visible
+  }
+
+  function updateDestClearBtn() {
+    const hasIcon = _destImgData || document.getElementById('dest-emoji-inp').value.trim();
+    const btn = document.getElementById('dest-icon-clear-btn');
+    if (!btn) return;
+    if (hasIcon) btn.classList.add('visible');
+    else btn.classList.remove('visible');
+  }
+
+  // ── Sync indicator helper ────────────────────────────────────────────────
+  function setSyncInd(state, text) {
+    const el = document.getElementById('sync-ind');
+    if (!el) return;
+    el.className = 'sync-indicator ' + state;
+    el.textContent = text;
+  }
+
+  function openDestModal(editIdx) {
+    if (!loggedIn) return;
+    editDestIdx = editIdx;
+    _destImgData = null;
+    selectedDestColor = '#00d4ff';
+    document.querySelectorAll('#color-row .color-swatch').forEach((s,i)=>s.classList.toggle('sel',i===0));
+    document.getElementById('dest-emoji-inp').value = '';
+    document.getElementById('dest-emoji-inp').style.borderColor = 'var(--border)';
+    document.getElementById('dest-emoji-preview').textContent = '';
+    document.getElementById('dest-img-preview').style.display = 'none';
+    document.getElementById('dest-img-preview').src = '';
+    document.getElementById('dest-img-inp').value = '';
+    document.getElementById('dest-title-inp').value = '';
+    document.getElementById('dest-desc-inp').value = '';
+    document.getElementById('dest-url-inp').value = '';
+    document.getElementById('dest-modal-head').textContent = editIdx >= 0 ? 'EDIT PAGE' : 'ADD PAGE';
+
+    if (editIdx >= 0) {
+      const d = destinations[editIdx];
+      selectedDestColor = d.color||'#00d4ff';
+      if (d.imgData) {
+        _destImgData = d.imgData;
+        document.getElementById('dest-img-preview').src = d.imgData;
+        document.getElementById('dest-img-preview').style.display = 'block';
+      } else {
+        document.getElementById('dest-emoji-inp').value = d.emoji||'';
+        document.getElementById('dest-emoji-inp').style.borderColor = d.emoji ? 'var(--accent)' : 'var(--border)';
+        document.getElementById('dest-emoji-preview').textContent = d.emoji||'';
+      }
+      document.querySelectorAll('#color-row .color-swatch').forEach(s=>{s.classList.remove('sel');if(s.dataset.c===d.color)s.classList.add('sel');});
+      document.getElementById('dest-title-inp').value = d.title;
+      document.getElementById('dest-desc-inp').value = d.desc;
+      document.getElementById('dest-url-inp').value = d.url;
+    }
+    updateDestClearBtn();
+    document.getElementById('dest-modal').classList.add('open');
+    setTimeout(()=>document.getElementById('dest-title-inp').focus(),100);
+  }
+
+  function closeDestModal() { document.getElementById('dest-modal').classList.remove('open'); }
+
+  async function saveDestination() {
+    if (!loggedIn) return;
+    const title = document.getElementById('dest-title-inp').value.trim().toUpperCase();
+    const desc = document.getElementById('dest-desc-inp').value.trim();
+    const url = document.getElementById('dest-url-inp').value.trim();
+    if (!title || !url) return;
+    const emojiVal = _destImgData ? null : (document.getElementById('dest-emoji-inp').value.trim() || null);
+    const dest = {
+      emoji: emojiVal,
+      imgData: _destImgData || null,
+      title,
+      desc: desc||'A new destination.',
+      url,
+      color: selectedDestColor
+    };
+    if (editDestIdx >= 0) destinations[editDestIdx] = dest;
+    else destinations.push(dest);
+    closeDestModal();
+    renderCards();
+    setSyncInd('saving', 'SAVING...');
+    await dbSet('hub','destinations',{list:destinations});
+    setSyncInd('synced', 'SYNCED ✓');
+    showSaveToast();
+  }
+
+  async function manualSave() {
+    if (!loggedIn) return;
+    setSyncInd('saving', 'SAVING...');
+    await dbSet('hub','destinations',{list:destinations});
+    setSyncInd('synced', 'SYNCED ✓');
+    showSaveToast();
+    anime({targets:'.save-btn',scale:[1,0.95,1],duration:300,easing:'easeOutQuart'});
+  }
+
+  function showSaveToast() {
+    const t = document.getElementById('save-toast');
+    if (!t) return;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+
+  async function deleteDest(i) {
+    if (!loggedIn || destinations.length <= 1) return;
+    destinations.splice(i,1);
+    renderCards();
+    setSyncInd('saving', 'SAVING...');
+    await dbSet('hub','destinations',{list:destinations});
+    setSyncInd('synced', 'SYNCED ✓');
+  }
+
+  applyAuthUI();
+</script>
+</body>
+</html>
