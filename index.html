@@ -276,7 +276,7 @@
       card.className = 'card';
       card.href = d.url||'#';
       card.style.setProperty('--card-accent', d.color||'#00d4ff');
-card.style.setProperty('--card-icon-bg', hexToRgba(d.color||'#00d4ff',0.1));
+      card.style.setProperty('--card-icon-bg', hexToRgba(d.color||'#00d4ff',0.1));
       const ownerBtns = loggedIn ? `<div class="card-actions">
         <button class="card-act-btn" onclick="event.preventDefault();openDestModal(${i})" title="Edit">✏️</button>
         <button class="card-act-btn del" onclick="event.preventDefault();deleteDest(${i})" title="Delete">🗑</button>
